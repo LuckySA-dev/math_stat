@@ -290,7 +290,7 @@ if __name__ == "__main__":
     print(f"\n=== Monthly Data ({len(monthly)} months) ===")
     print(monthly.head())
 
-    train, test, results, metrics_df = run_all_models(monthly)
+    train, test, results, metrics_df, model_params = run_all_models(monthly)
     print("\n=== Model Comparison ===")
     print(metrics_df.to_string(index=False))
     print(f"\n✓ Best model: {best_model(metrics_df)}")
