@@ -1,10 +1,9 @@
 pandas
 numpy
-matplotlib
-seaborn
 plotly
 streamlit
 statsmodels
 scikit-learn
 prophet
-openpyxl
+streamlit-echarts
+scipy
