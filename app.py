@@ -58,7 +58,7 @@ with col2:
     st.markdown("""
     <div class="gold-card">
         <h3>🔬 การวิเคราะห์</h3>
-        <p>เปรียบเทียบ 5 วิธีพยากรณ์อนุกรมเวลา<br>SMA · Holt · Holt-Winters · ARIMA · Prophet<br>ประเมินด้วย MAE / RMSE / MAPE</p>
+        <p>เปรียบเทียบ 8 วิธีพยากรณ์อนุกรมเวลา<br>SMA · Holt · Holt-Winters · ARIMA · Prophet<br>Linear · Polynomial · Multiple Regression<br>ประเมินด้วย MAE / RMSE / MAPE</p>
     </div>
     """, unsafe_allow_html=True)
 with col3:
@@ -78,9 +78,11 @@ st.markdown("""
 | **2. วัตถุประสงค์** | เป้าหมายของการวิเคราะห์ |
 | **3. ประโยชน์จากการวิเคราะห์** | คุณค่าที่ได้จากโครงงาน |
 | **4. สถิติเบื้องต้น** | Descriptive Statistics · Histogram · Box Plot · Heatmap |
-| **5. วิเคราะห์อนุกรมเวลา** | เปรียบเทียบ ≥ 4 วิธี พร้อมกราฟแต่ละแบบ |
+| **5. วิเคราะห์อนุกรมเวลา** | เปรียบเทียบ 8 วิธี พร้อมกราฟแต่ละแบบ |
 | **6. สรุปรูปแบบที่ดีที่สุด** | เลือก Best Model จาก MAE / RMSE / MAPE |
 | **7. กราฟจริง vs ทำนาย** | เส้นแสดงแนวโน้มข้อมูลจริงเทียบข้อมูลทำนาย |
+| **8. เปรียบเทียบ 3 วิธีเด่น** | Holt vs Holt-Winters vs ARIMA — กราฟ + อธิบาย (Slide-Ready) |
+| **9. Regression & Overlay** | Linear / Polynomial / Multiple Regression + กราฟซ้อนทุกวิธี |
 """)
 
 st.markdown("---")

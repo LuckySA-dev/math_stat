@@ -42,6 +42,7 @@ actual_full = [round(v, 2) for v in monthly["avg_price"].values]
 method_colors = {
     "SMA": "#FF6B6B", "Holt": "#FFEAA7", "ExpSmoothing": "#4ECDC4",
     "ARIMA": "#45B7D1", "Prophet": "#96CEB4",
+    "LinearReg": "#E8A0BF", "PolyReg": "#B983FF", "MultiReg": "#94D2BD",
 }
 
 echarts_series = [
@@ -344,4 +345,4 @@ ma_opt = {
 st_echarts(options=ma_opt, height="500px")
 
 st.markdown("---")
-st.caption("หน้า 7/7 — กราฟเส้นแสดงแนวโน้มข้อมูลจริงกับข้อมูลทำนาย")
+st.caption("หน้า 7/9 — กราฟเส้นแสดงแนวโน้มข้อมูลจริงกับข้อมูลทำนาย")

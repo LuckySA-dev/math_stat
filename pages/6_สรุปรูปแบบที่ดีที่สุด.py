@@ -292,4 +292,4 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("หน้า 6/7 — สรุปรูปแบบที่ดีที่สุด")
+st.caption("หน้า 6/9 — สรุปรูปแบบที่ดีที่สุด")

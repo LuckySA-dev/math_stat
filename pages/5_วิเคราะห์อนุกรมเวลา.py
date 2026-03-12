@@ -14,7 +14,7 @@ from helpers import inject_css, get_data, get_models, decompose_series
 inject_css()
 df, monthly = get_data()
 
-st.markdown('<div class="page-title">🔬 5. วิเคราะห์อนุกรมเวลา — เปรียบเทียบ 5 วิธี</div>', unsafe_allow_html=True)
+st.markdown('<div class="page-title">🔬 5. วิเคราะห์อนุกรมเวลา — เปรียบเทียบ 8 วิธี</div>', unsafe_allow_html=True)
 st.markdown("---")
 
 # ──────────────────────────────────────
@@ -80,7 +80,7 @@ st.plotly_chart(fig, use_container_width=True)
 # 5 METHODS — ONE BY ONE
 # ═══════════════════════════════════════
 st.markdown("---")
-st.markdown("## 2️⃣ เปรียบเทียบ 5 วิธีพยากรณ์")
+st.markdown("## 2️⃣ เปรียบเทียบ 8 วิธีพยากรณ์")
 
 method_info = {
     "SMA": {
@@ -164,6 +164,59 @@ method_info = {
         - **เหมาะกับ:** ข้อมูลที่มี Seasonal Pattern ชัดเจน หรือมี Holiday Effects
         """,
         "metric_key": "Prophet",
+    },
+    "LinearReg": {
+        "full_name": "Linear Regression",
+        "color": "#E8A0BF",
+        "description": """
+        **Linear Regression** ใช้สมการเส้นตรงเพื่อจับแนวโน้มของราคา:
+        
+        $$ \\hat{y}_t = \\beta_0 + \\beta_1 \\cdot t $$
+        
+        - $\\beta_0$ = Intercept (จุดตัดแกน y)
+        - $\\beta_1$ = Slope (ความชันของแนวโน้ม)
+        - $t$ = Time Index (ลำดับเดือน)
+        
+        - **ข้อดี:** เรียบง่ายมาก ตีความง่าย Baseline ที่ดี
+        - **ข้อเสีย:** จับได้แค่แนวโน้มเชิงเส้นเท่านั้น
+        - **เหมาะกับ:** ข้อมูลที่มีแนวโน้มเป็นเส้นตรง
+        """,
+        "metric_key": "LinearReg",
+    },
+    "PolyReg": {
+        "full_name": "Polynomial Regression (Degree 2)",
+        "color": "#B983FF",
+        "description": """
+        **Polynomial Regression** ขยายจาก Linear ด้วย Term กำลังสอง:
+        
+        $$ \\hat{y}_t = \\beta_0 + \\beta_1 \\cdot t + \\beta_2 \\cdot t^2 $$
+        
+        - Degree = 2 (Quadratic) เพื่อจับแนวโน้มโค้ง
+        - $\\beta_2 > 0$ → โค้งเปิดขึ้น (ราคาเร่งตัว)
+        - $\\beta_2 < 0$ → โค้งเปิดลง (ราคาชะลอตัว)
+        
+        - **ข้อดี:** จับ Non-linear Trend ได้ดีกว่า Linear
+        - **ข้อเสีย:** อาจ Extrapolate ผิดพลาดถ้า Degree สูงเกินไป
+        - **เหมาะกับ:** ข้อมูลที่มีแนวโน้มโค้งชัดเจน
+        """,
+        "metric_key": "PolyReg",
+    },
+    "MultiReg": {
+        "full_name": "Multiple Regression",
+        "color": "#94D2BD",
+        "description": """
+        **Multiple Regression** ใช้หลาย Features ร่วมกัน:
+        
+        $$ \\hat{y}_t = \\beta_0 + \\beta_1 t + \\beta_2 t^2 + \\beta_3 \\sin\\!\\left(\\frac{2\\pi m}{12}\\right) + \\beta_4 \\cos\\!\\left(\\frac{2\\pi m}{12}\\right) $$
+        
+        - $t$ = Time Index, $t^2$ = Quadratic Trend
+        - $\\sin, \\cos$ = Cyclical Encoding ของเดือน (Seasonality)
+        
+        - **ข้อดี:** จับทั้ง Non-linear Trend และ Seasonal Pattern
+        - **ข้อเสีย:** ต้องเลือก Features อย่างเหมาะสม
+        - **เหมาะกับ:** ข้อมูลที่มีทั้ง Trend และ Seasonal
+        """,
+        "metric_key": "MultiReg",
     },
 }
 
@@ -319,7 +372,9 @@ for method_key, pred_series in results.items():
         # Find matching metric row
         match_map = {
             "SMA": "SMA", "ExpSmoothing": "Holt-Winters",
-            "ARIMA": "ARIMA", "Prophet": "Prophet", "Holt": "Holt"
+            "ARIMA": "ARIMA", "Prophet": "Prophet", "Holt": "Holt",
+            "LinearReg": "Linear Regression", "PolyReg": "Polynomial",
+            "MultiReg": "Multiple Regression",
         }
         match_str = match_map.get(method_key, method_key)
         row = metrics_df[metrics_df["method"].str.contains(match_str)]
@@ -371,7 +426,7 @@ st.dataframe(
 st.markdown("---")
 st.markdown("## 4️⃣ กราฟเปรียบเทียบ MAPE")
 
-bar_colors = ["#81C784", "#A5D6A7", "#FFD54F", "#FFB74D", "#E57373"]
+bar_colors = ["#81C784", "#A5D6A7", "#C8E6C9", "#FFD54F", "#FFB74D", "#FFCC80", "#FF8A65", "#E57373"]
 mape_data = []
 for i, (_, row) in enumerate(metrics_df.iterrows()):
     mape_data.append({
@@ -416,4 +471,4 @@ grouped_bar_opt = {
 st_echarts(options=grouped_bar_opt, height="400px")
 
 st.markdown("---")
-st.caption("หน้า 5/7 — วิเคราะห์อนุกรมเวลาเปรียบเทียบ 5 วิธี")
+st.caption("หน้า 5/9 — วิเคราะห์อนุกรมเวลาเปรียบเทียบ 8 วิธี")

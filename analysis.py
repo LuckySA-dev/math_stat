@@ -8,6 +8,8 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.seasonal import seasonal_decompose
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -178,6 +180,62 @@ def forecast_holt(train, test):
     return predictions.rename("Holt"), model
 
 
+# --- Method 6: Linear Regression ---
+def forecast_linear_regression(train, test):
+    """Simple Linear Regression: y = β₀ + β₁·t"""
+    n_train = len(train)
+    X_train = np.arange(n_train).reshape(-1, 1)
+    y_train = train["avg_price"].values
+    X_test = np.arange(n_train, n_train + len(test)).reshape(-1, 1)
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+    return pd.Series(predictions, index=test.index, name="LinearReg"), model
+
+
+# --- Method 7: Polynomial Regression (degree=2) ---
+def forecast_poly_regression(train, test, degree: int = 2):
+    """Polynomial Regression: y = β₀ + β₁·t + β₂·t² (+ ...)"""
+    n_train = len(train)
+    t_train = np.arange(n_train).reshape(-1, 1)
+    t_test = np.arange(n_train, n_train + len(test)).reshape(-1, 1)
+
+    poly = PolynomialFeatures(degree=degree, include_bias=False)
+    X_train = poly.fit_transform(t_train)
+    X_test = poly.transform(t_test)
+
+    model = LinearRegression()
+    model.fit(X_train, train["avg_price"].values)
+    predictions = model.predict(X_test)
+    return pd.Series(predictions, index=test.index, name="PolyReg"), model, poly
+
+
+# --- Method 8: Multiple Regression ---
+def _build_multi_features(index, start_idx: int = 0):
+    """Build feature matrix: time_idx, t², sin(month), cos(month)."""
+    n = len(index)
+    t = np.arange(start_idx, start_idx + n).astype(float)
+    month = np.array([d.month for d in index])
+    return np.column_stack([
+        t,
+        t ** 2,
+        np.sin(2 * np.pi * month / 12),
+        np.cos(2 * np.pi * month / 12),
+    ])
+
+
+def forecast_multi_regression(train, test):
+    """Multiple Regression: y = β₀ + β₁·t + β₂·t² + β₃·sin(m) + β₄·cos(m)"""
+    X_train = _build_multi_features(train.index, start_idx=0)
+    X_test = _build_multi_features(test.index, start_idx=len(train))
+
+    model = LinearRegression()
+    model.fit(X_train, train["avg_price"].values)
+    predictions = model.predict(X_test)
+    return pd.Series(predictions, index=test.index, name="MultiReg"), model
+
+
 # ──────────────────────────────────────────────
 # 5. RUN ALL MODELS & COMPARE
 # ──────────────────────────────────────────────
@@ -260,6 +318,42 @@ def run_all_models(monthly: pd.DataFrame, test_months: int = 6):
         "sse": round(float(holt_fit.sse), 2),
         "aic": round(float(holt_fit.aic), 2),
         "bic": round(float(holt_fit.bic), 2),
+    }
+
+    # Linear Regression
+    lr_pred, lr_model = forecast_linear_regression(train, test)
+    results["LinearReg"] = lr_pred
+    metrics.append(evaluate(test["avg_price"], lr_pred, "Linear Regression"))
+    model_params["LinearReg"] = {
+        "intercept": round(float(lr_model.intercept_), 4),
+        "coef_t": round(float(lr_model.coef_[0]), 4),
+        "r2_train": round(float(lr_model.score(
+            np.arange(len(train)).reshape(-1, 1), train["avg_price"].values)), 4),
+    }
+
+    # Polynomial Regression
+    poly_pred, poly_model, poly_tf = forecast_poly_regression(train, test, degree=2)
+    results["PolyReg"] = poly_pred
+    metrics.append(evaluate(test["avg_price"], poly_pred, "Polynomial Reg (deg=2)"))
+    model_params["PolyReg"] = {
+        "degree": 2,
+        "intercept": round(float(poly_model.intercept_), 4),
+        "coefs": [round(float(c), 6) for c in poly_model.coef_],
+        "r2_train": round(float(poly_model.score(
+            poly_tf.transform(np.arange(len(train)).reshape(-1, 1)),
+            train["avg_price"].values)), 4),
+    }
+
+    # Multiple Regression
+    multi_pred, multi_model = forecast_multi_regression(train, test)
+    results["MultiReg"] = multi_pred
+    metrics.append(evaluate(test["avg_price"], multi_pred, "Multiple Regression"))
+    feat_names = ["t", "t²", "sin(month)", "cos(month)"]
+    model_params["MultiReg"] = {
+        "intercept": round(float(multi_model.intercept_), 4),
+        "coefs": {name: round(float(c), 6) for name, c in zip(feat_names, multi_model.coef_)},
+        "r2_train": round(float(multi_model.score(
+            _build_multi_features(train.index, 0), train["avg_price"].values)), 4),
     }
 
     metrics_df = pd.DataFrame(metrics).sort_values("MAPE (%)").reset_index(drop=True)
