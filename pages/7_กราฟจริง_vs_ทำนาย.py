@@ -26,7 +26,7 @@ st.markdown("## 📊 ทุกวิธีรวมในกราฟเดี�
 st.markdown("""
 <div class="highlight-box">
 กราฟด้านล่างแสดง <b>ราคาจริง (Actual)</b> เทียบกับ <b>ราคาทำนาย (Predicted)</b> 
-จากทั้ง 5 วิธี ในช่วง Test Period 
+จากทั้ง 8 วิธี ในช่วง Test Period 
 — เส้นทึบสีทอง = ราคาจริง, เส้นประ = ราคาทำนายจากแต่ละวิธี
 </div>
 """, unsafe_allow_html=True)
@@ -45,47 +45,69 @@ method_colors = {
     "LinearReg": "#E8A0BF", "PolyReg": "#B983FF", "MultiReg": "#94D2BD",
 }
 
+METHOD_NAMES = {
+    "SMA": "SMA (3-month)", "Holt": "Holt", "ExpSmoothing": "Holt-Winters",
+    "ARIMA": "ARIMA(2,1,2)", "Prophet": "Prophet",
+    "LinearReg": "Linear Reg", "PolyReg": "Poly Reg", "MultiReg": "Multi Reg",
+}
+METHOD_DASH = {
+    "SMA": "dashed", "Holt": "dashed", "ExpSmoothing": "dotted",
+    "ARIMA": "dashed", "Prophet": "dotted",
+    "LinearReg": "dashed", "PolyReg": "dotted", "MultiReg": "dashed",
+}
+METHOD_SYMBOL = {
+    "SMA": "circle", "Holt": "diamond", "ExpSmoothing": "triangle",
+    "ARIMA": "rect", "Prophet": "roundRect",
+    "LinearReg": "pin", "PolyReg": "arrow", "MultiReg": "circle",
+}
+
 echarts_series = [
     {
         "name": "Actual (ราคาจริง)",
         "type": "line",
         "data": actual_full,
-        "lineStyle": {"color": "#FFD700", "width": 2},
+        "lineStyle": {"color": "#FFD700", "width": 3},
         "showSymbol": False,
-        "emphasis": {"lineStyle": {"width": 3}},
+        "emphasis": {"lineStyle": {"width": 4}},
+        "z": 10,
     }
 ]
 
 for method_key, pred in results.items():
     pred_data = [None] * train_end_idx + [round(v, 2) for v in pred.values]
+    color = method_colors.get(method_key, "#888")
     echarts_series.append({
-        "name": method_key,
+        "name": METHOD_NAMES.get(method_key, method_key),
         "type": "line",
         "data": pred_data,
-        "lineStyle": {"color": method_colors.get(method_key, "#888"), "width": 2.5, "type": "dashed"},
-        "symbol": "diamond",
-        "symbolSize": 7,
-        "itemStyle": {"color": method_colors.get(method_key, "#888")},
+        "lineStyle": {"color": color, "width": 2.5, "type": METHOD_DASH.get(method_key, "dashed")},
+        "symbol": METHOD_DASH.get(method_key, "diamond"),
+        "symbolSize": 8,
+        "itemStyle": {"color": color},
     })
+
+# Compute nice y-axis range for the zoomed-in view
+_zoom_prices = list(monthly["avg_price"].values[-test_months-12:])
+for _pred in results.values():
+    _zoom_prices.extend(_pred.values)
+_y_min = int(min(_zoom_prices) * 0.92 // 100) * 100
+_y_max = int(max(_zoom_prices) * 1.05 // 100 + 1) * 100
 
 combined_opt = {
     "tooltip": {"trigger": "axis", "axisPointer": {"type": "cross"}},
     "legend": {
-        "data": ["Actual (ราคาจริง)"] + list(results.keys()),
-        "textStyle": {"color": "#CCC"}, "bottom": 0,
+        "data": ["Actual (ราคาจริง)"] + [METHOD_NAMES.get(k, k) for k in results.keys()],
+        "textStyle": {"color": "#CCC", "fontSize": 11}, "bottom": 0, "type": "scroll",
     },
+    "grid": {"top": 40, "bottom": 70, "left": 65, "right": 25},
     "dataZoom": [
-        {"type": "inside", "start": max(0, 100 - (test_months + 12) * 100 / len(monthly)), "end": 100},
-        {"start": 0, "end": 100},
+        {"type": "inside", "start": max(0, 100 - (test_months + 18) * 100 / len(monthly)), "end": 100},
+        {"start": max(0, 100 - (test_months + 18) * 100 / len(monthly)), "end": 100, "bottom": 30},
     ],
     "xAxis": {"type": "category", "data": all_dates, "boundaryGap": False},
-    "yAxis": {"type": "value", "axisLabel": {"formatter": "${value}"}},
+    "yAxis": {"type": "value", "min": _y_min, "max": _y_max, "axisLabel": {"formatter": "${value}"}},
     "series": echarts_series,
     "backgroundColor": "transparent",
-    "markLine": {
-        "data": [{"xAxis": all_dates[train_end_idx]}],
-        "lineStyle": {"color": "rgba(255,255,255,0.3)", "type": "dashed"},
-    },
 }
 st_echarts(options=combined_opt, height="550px")
 
@@ -101,57 +123,72 @@ error = test["avg_price"].values - pred.values
 
 col1, col2 = st.columns([2, 1])
 
-with col1:
-    st.markdown(f"### {selected}: Full Timeline + Forecast")
+sel_color = method_colors.get(selected, "#4ECDC4")
+sel_name = METHOD_NAMES.get(selected, selected)
 
-    # Plotly for single method — with confidence band approximation
+with col1:
+    st.markdown(f"### {sel_name}: Actual vs Predicted")
+
+    # Plotly — zoomed into last N+6 months for clarity
+    zoom_start = max(0, len(train) - 6)
+    zoom_monthly = monthly.iloc[zoom_start:]
+
     fig = go.Figure()
 
-    # Full actual
+    # Actual (zoomed)
     fig.add_trace(go.Scatter(
-        x=monthly.index, y=monthly["avg_price"],
-        mode="lines", name="Actual",
-        line=dict(color="#FFD700", width=2),
+        x=zoom_monthly.index, y=zoom_monthly["avg_price"],
+        mode="lines+markers", name="Actual (ราคาจริง)",
+        line=dict(color="#FFD700", width=3),
+        marker=dict(size=6, color="#FFD700"),
     ))
 
     # Prediction
     fig.add_trace(go.Scatter(
         x=test.index, y=pred.values,
-        mode="lines+markers", name=f"Predicted ({selected})",
-        line=dict(color="#4ECDC4", width=2.5, dash="dash"),
-        marker=dict(size=9, symbol="diamond"),
+        mode="lines+markers", name=f"Predicted ({sel_name})",
+        line=dict(color=sel_color, width=3, dash="dash"),
+        marker=dict(size=10, symbol="diamond", color=sel_color,
+                    line=dict(width=1.5, color="white")),
     ))
 
     # Simple confidence band (±1 std of error)
     err_std = np.std(error)
+    hex_rgb = sel_color.lstrip("#")
+    r, g, b = int(hex_rgb[:2], 16), int(hex_rgb[2:4], 16), int(hex_rgb[4:6], 16)
     fig.add_trace(go.Scatter(
         x=list(test.index) + list(test.index[::-1]),
         y=list(pred.values + err_std) + list((pred.values - err_std)[::-1]),
-        fill="toself", fillcolor="rgba(78,205,196,0.1)",
+        fill="toself", fillcolor=f"rgba({r},{g},{b},0.12)",
         line=dict(color="rgba(0,0,0,0)"),
         name="±1σ Confidence Band",
         showlegend=True,
     ))
 
-    # Train/test split line (avoid add_vline Timestamp bug in Plotly)
+    # Train/test split line
     fig.add_shape(
         type="line",
         x0=test.index[0], x1=test.index[0],
         y0=0, y1=1, yref="paper",
-        line=dict(dash="dot", color="rgba(255,255,255,0.4)"),
+        line=dict(dash="dot", color="rgba(255,255,255,0.4)", width=1.5),
     )
     fig.add_annotation(
         x=test.index[0], y=1.04, yref="paper",
         text="← Train | Test →",
-        font=dict(color="#888"),
+        font=dict(color="#AAA", size=12),
         showarrow=False,
     )
 
+    # Compute tight y-range
+    all_y = list(zoom_monthly["avg_price"].values) + list(pred.values)
+    y_pad = (max(all_y) - min(all_y)) * 0.12
     fig.update_layout(
         template="plotly_dark", height=500,
-        title=f"{selected}: Actual vs Predicted with Confidence Band",
+        title=dict(text=f"{sel_name}: Actual vs Predicted", font=dict(size=16)),
         xaxis_title="Date", yaxis_title="Price (USD)",
+        yaxis=dict(range=[min(all_y) - y_pad, max(all_y) + y_pad]),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+        margin=dict(t=80, b=40),
     )
     st.plotly_chart(fig, use_container_width=True)
 
